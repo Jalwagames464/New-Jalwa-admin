@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stairs Admin - Control Room</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+        :root { --neon: #00f2ff; --bg: #020617; --gold: #fbbf24; --red: #ef4444; --green: #22c55e; }
+        body { background: var(--bg); color: white; font-family: 'Orbitron', sans-serif; margin: 0; padding: 15px; }
+        .card { background: rgba(255,255,255,0.05); border: 1px solid var(--neon); border-radius: 15px; padding: 15px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(0,242,255,0.1); }
+        h2 { font-family: 'Bebas Neue'; color: var(--neon); margin: 0 0 10px 0; letter-spacing: 2px; }
+        
+        /* Stats Styling */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-box { background: #000; padding: 10px; border-radius: 10px; text-align: center; border: 1px solid #1e293b; }
+        .stat-box span { display: block; font-size: 20px; color: var(--gold); }
+
+        /* Mode Switch Styling */
+        .mode-container { display: flex; gap: 10px; margin-top: 10px; }
+        .mode-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-family: 'Orbitron'; font-size: 10px; cursor: pointer; transition: 0.3s; background: #1e293b; color: #fff; border: 1px solid #334155; }
+        .mode-btn.active-auto { background: var(--green); border-color: #fff; box-shadow: 0 0 10px var(--green); color: black; font-weight: bold; }
+        .mode-btn.active-manual { background: var(--red); border-color: #fff; box-shadow: 0 0 10px var(--red); color: white; font-weight: bold; }
+
+        /* Path Control Styling */
+        .path-display { display: flex; flex-direction: column-reverse; gap: 5px; margin-top: 15px; }
+        .path-row { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 8px; border-radius: 8px; border: 1px solid #334155; }
+        .side-btn { padding: 5px 15px; border-radius: 5px; border: 1px solid #475569; cursor: pointer; background: #1e293b; color: #94a3b8; font-family: 'Orbitron'; font-size: 10px; }
+        .side-btn.active { background: var(--neon); color: #000; border-color: #fff; box-shadow: 0 0 10px var(--neon); }
+
+        .btn-update { width: 100%; padding: 15px; margin-top: 15px; background: var(--gold); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: 'Bebas Neue'; font-size: 20px; }
+        
+        .player-list { font-size: 12px; width: 100%; border-collapse: collapse; }
+        .player-list th { text-align: left; color: var(--neon); border-bottom: 1px solid #334155; padding: 8px; }
+        .player-list td { padding: 8px; border-bottom: 1px solid #1e293b; }
+        .online-dot { height: 8px; width: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 5px #22c55e; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>SYSTEM MODE</h2>
+    <div class="mode-container">
+        <button id="btn-auto" class="mode-btn" onclick="updateMode('auto')">AUTO BOT (PROFIT)</button>
+        <button id="btn-manual" class="mode-btn" onclick="updateMode('manual')">MANUAL (YT VIDEO)</button>
+    </div>
+    <p id="mode-desc" style="font-size: 9px; margin-top: 8px; color: #94a3b8; text-align: center;">Loading system status...</p>
+</div>
+
+<div class="card">
+    <h2>GLOBAL CONTROL</h2>
+    <div class="stats-grid">
+        <div class="stat-box">PERIOD <span id="curPeriod">----</span></div>
+        <div class="stat-box">ONLINE <span id="onlineCount">0</span></div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>STAIRS PATTERN (SAFE PATH)</h2>
+    <p style="font-size: 10px; color: #94a3b8;">Manual mode uses this path. Blue = Safe.</p>
+    <div class="path-display" id="adminPathBoard"></div>
+    <button class="btn-update" onclick="saveNewPath()">SAVE MANUAL PATTERN</button>
+</div>
+
+<div class="card">
+    <h2>LIVE PLAYERS</h2>
+    <table class="player-list">
+        <thead>
+            <tr><th>USER</th><th>BALANCE</th><th>LEVEL</th></tr>
+        </thead>
+        <tbody id="userList"></tbody>
+    </table>
+</div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://jalwa-v2-ad222-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentPeriod = "";
+    let tempPath = [0,0,0,0,0,0,0,0];
+    let currentMode = "auto";
+
+    // --- 🟢 STICKY MODE SYSTEM ---
+    db.ref('admin_settings/mode').on('value', snap => {
+        currentMode = snap.val() || "auto";
+        const btnAuto = document.getElementById('btn-auto');
+        const btnManual = document.getElementById('btn-manual');
+        const desc = document.getElementById('mode-desc');
+
+        if(currentMode === 'auto') {
+            btnAuto.className = "mode-btn active-auto";
+            btnManual.className = "mode-btn";
+            desc.innerText = "SYSTEM: AUTO (High bets > ₹40 will be killed automatically)";
+            desc.style.color = "var(--green)";
+        } else {
+            btnAuto.className = "mode-btn";
+            btnManual.className = "mode-btn active-manual";
+            desc.innerText = "SYSTEM: MANUAL (Only the pattern below will work - YT Video Mode)";
+            desc.style.color = "var(--red)";
+        }
+    });
+
+    function updateMode(newMode) {
+        db.ref('admin_settings/mode').set(newMode);
+    }
+
+    // Period Monitor
+    function monitorPeriod() {
+        const now = new Date();
+        const pId = now.getFullYear() + "" + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0') + now.getHours().toString().padStart(2,'0') + now.getMinutes().toString().padStart(2,'0');
+        
+        if(currentPeriod !== pId) {
+            currentPeriod = pId;
+            document.getElementById('curPeriod').innerText = currentPeriod.slice(-4);
+            loadPeriodPath(currentPeriod);
+        }
+    }
+    setInterval(monitorPeriod, 1000);
+
+    function loadPeriodPath(pid) {
+        db.ref('global_stairs/' + pid).on('value', snap => {
+            if(snap.exists()) {
+                tempPath = snap.val().path;
+                renderPathUI();
+            }
+        });
+    }
+
+    function renderPathUI() {
+        const board = document.getElementById('adminPathBoard');
+        board.innerHTML = '';
+        for(let i=0; i<8; i++) {
+            const row = document.createElement('div');
+            row.className = 'path-row';
+            row.innerHTML = `
+                <span style="font-size:10px; color:var(--gold)">L-${i+1}</span>
+                <button class="side-btn ${tempPath[i]===0?'active':''}" onclick="setStep(${i},0)">LEFT</button>
+                <button class="side-btn ${tempPath[i]===1?'active':''}" onclick="setStep(${i},1)">RIGHT</button>
+            `;
+            board.appendChild(row);
+        }
+    }
+
+    function setStep(level, side) {
+        tempPath[level] = side;
+        renderPathUI();
+    }
+
+    function saveNewPath() {
+        db.ref('global_stairs/' + currentPeriod).update({ path: tempPath })
+        .then(() => alert("Manual Path Saved for current period!"));
+    }
+
+    // Live User Monitor
+    db.ref('users').on('value', snap => {
+        const list = document.getElementById('userList');
+        const count = document.getElementById('onlineCount');
+        list.innerHTML = '';
+        let online = 0;
+        
+        snap.forEach(user => {
+            const data = user.val();
+            const lastActive = data.lastActive || 0;
+            const isOnline = (Date.now() - lastActive) < 10000;
+
+            if(isOnline) {
+                online++;
+                list.innerHTML += `
+                    <tr>
+                        <td><div class="online-dot"></div> ${user.key}</td>
+                        <td>₹${Number(data.balance).toFixed(2)}</td>
+                        <td style="color:var(--neon)">L-${data.currentLevel || 0}</td>
+                    </tr>
+                `;
+            }
+        });
+        count.innerText = online;
+    });
+</script>
+</body>
+</html>

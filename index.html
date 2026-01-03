@@ -24,18 +24,18 @@
             color: white;
         }
 
-        /* Top Header */
         .admin-header {
             padding: 15px;
             background: var(--card);
             border-bottom: 1px solid var(--border);
             text-align: center;
             font-weight: 900;
-            letter-spacing: 1px;
             color: var(--accent);
+            letter-spacing: 1px;
+            font-size: 14px;
         }
 
-        /* Main Viewport Jahan Aapki Files Khulengi */
+        /* Iframe styling */
         #mainDisplay {
             flex-grow: 1;
             width: 100%;
@@ -43,7 +43,6 @@
             background: var(--bg);
         }
 
-        /* Navigation Bar (Bottom) */
         .nav-bar {
             display: flex;
             background: var(--card);
@@ -59,21 +58,16 @@
             font-size: 11px;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.3s;
-            border-right: 1px solid rgba(255,255,255,0.05);
         }
-
-        .nav-item:last-child { border-right: none; }
 
         .nav-item i {
             display: block;
-            font-size: 22px;
+            font-size: 20px;
             margin-bottom: 5px;
         }
 
         .nav-item.active {
             color: var(--accent);
-            text-shadow: 0 0 10px var(--accent);
         }
     </style>
 </head>
@@ -81,7 +75,7 @@
 
     <div class="admin-header">JALWA PRO MASTER CONTROL</div>
 
-    <iframe id="mainDisplay" name="mainDisplay" src="players.html"></iframe>
+    <iframe id="mainDisplay" name="mainDisplay" src="player.html"></iframe>
 
     <div class="nav-bar">
         <div class="nav-item active" onclick="changePage('player.html', this)">
@@ -102,10 +96,7 @@
 
     <script>
         function changePage(fileName, element) {
-            // Frame mein file badlo
             document.getElementById('mainDisplay').src = fileName;
-
-            // Button ko highligh karo
             let buttons = document.getElementsByClassName('nav-item');
             for (let i = 0; i < buttons.length; i++) {
                 buttons[i].classList.remove('active');

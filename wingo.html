@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wingo Pro Hack - Admin</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --bg: #06091b; --card: #10142d; --gold: #ffd700; --green: #1DB954; --red: #F44336; --violet: #673AB7; --cyan: #00ffca; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; }
+        .header { text-align: center; padding: 15px; background: var(--card); border-bottom: 2px solid var(--cyan); margin-bottom: 15px; }
+        
+        /* COLOR CARDS */
+        .color-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .color-card { padding: 15px 5px; border-radius: 12px; text-align: center; font-weight: bold; border: 2px solid transparent; position: relative; }
+        .amt-tag { display: block; font-size: 18px; margin-top: 5px; color: var(--gold); }
+        
+        /* NUMBER BALLS */
+        .num-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
+        .num-ball { width: 100%; aspect-ratio: 1/1; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #333; cursor: pointer; font-weight: bold; position: relative; }
+        .num-amt { font-size: 9px; color: #fff; background: rgba(0,0,0,0.5); padding: 1px 3px; border-radius: 4px; position: absolute; bottom: 5px; }
+
+        /* COLORS */
+        .bg-green { background: var(--green); }
+        .bg-red { background: var(--red); }
+        .bg-violet { background: var(--violet); }
+        .bg-0 { background: linear-gradient(135deg, var(--red) 50%, var(--violet) 50%); }
+        .bg-5 { background: linear-gradient(135deg, var(--green) 50%, var(--violet) 50%); }
+
+        /* BLINKING EFFECT (FOR HIGH LOAD) */
+        @keyframes danger-blink { 0%, 100% { opacity: 1; border-color: white; box-shadow: 0 0 15px white; } 50% { opacity: 0.7; border-color: red; box-shadow: 0 0 5px red; } }
+        .is-high-load { animation: danger-blink 0.6s infinite !important; }
+
+        /* CALCULATION PANEL */
+        .calc-panel { background: var(--card); padding: 15px; border-radius: 15px; border: 1px solid #1f2855; }
+        .calc-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #333; font-size: 14px; }
+        .timer-box { font-size: 24px; color: var(--gold); font-weight: bold; text-align: center; margin-bottom: 10px; font-family: monospace; }
+        
+        #toast { visibility: hidden; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--cyan); color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 1000; }
+        #toast.show { visibility: visible; }
+    </style>
+</head>
+<body>
+
+<div id="toast">Result Set!</div>
+
+<div class="header">
+    <div class="timer-box" id="timer">00:00</div>
+    <div id="pId" style="font-size:12px; color:#7e87a8;">Period: ...</div>
+</div>
+
+<div class="color-row">
+    <div id="btnGreen" class="color-card bg-green" onclick="setResult('Green')">
+        GREEN <span class="amt-tag" id="loadGreen">₹0</span>
+    </div>
+    <div id="btnViolet" class="color-card bg-violet" onclick="setResult('Violet')">
+        VIOLET <span class="amt-tag" id="loadViolet">₹0</span>
+    </div>
+    <div id="btnRed" class="color-card bg-red" onclick="setResult('Red')">
+        RED <span class="amt-tag" id="loadRed">₹0</span>
+    </div>
+</div>
+
+<div class="num-grid">
+    <div id="n0" class="num-ball bg-0" onclick="setResult(0)">0 <span class="num-amt" id="l0">₹0</span></div>
+    <div id="n1" class="num-ball bg-green" onclick="setResult(1)">1 <span class="num-amt" id="l1">₹0</span></div>
+    <div id="n2" class="num-ball bg-red" onclick="setResult(2)">2 <span class="num-amt" id="l2">₹0</span></div>
+    <div id="n3" class="num-ball bg-green" onclick="setResult(3)">3 <span class="num-amt" id="l3">₹0</span></div>
+    <div id="n4" class="num-ball bg-red" onclick="setResult(4)">4 <span class="num-amt" id="l4">₹0</span></div>
+    <div id="n5" class="num-ball bg-5" onclick="setResult(5)">5 <span class="num-amt" id="l5">₹0</span></div>
+    <div id="n6" class="num-ball bg-red" onclick="setResult(6)">6 <span class="num-amt" id="l6">₹0</span></div>
+    <div id="n7" class="num-ball bg-green" onclick="setResult(7)">7 <span class="num-amt" id="l7">₹0</span></div>
+    <div id="n8" class="num-ball bg-red" onclick="setResult(8)">8 <span id="l8" class="num-amt">₹0</span></div>
+    <div id="n9" class="num-ball bg-green" onclick="setResult(9)">9 <span id="l9" class="num-amt">₹0</span></div>
+</div>
+
+<div class="calc-panel">
+    <h3 style="margin-top:0; color:var(--cyan); font-size:16px;"><i class="fas fa-calculator"></i> LIVE PROFIT ANALYSIS</h3>
+    <div class="calc-row"><span>Total Collection:</span><span id="totalColl" style="color:var(--gold)">₹0</span></div>
+    <div class="calc-row"><span>If Green Wins:</span><span id="ifGreen" style="color:var(--red)">-₹0</span></div>
+    <div class="calc-row"><span>If Red Wins:</span><span id="ifRed" style="color:var(--red)">-₹0</span></div>
+    <div id="advice" style="margin-top:10px; text-align:center; font-weight:bold; color:var(--cyan);">WATING FOR BETS...</div>
+</div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://jalwa-v2-ad222-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function setResult(res) {
+        db.ref('gameControl/nextResult').set(res);
+        const t = document.getElementById('toast');
+        t.innerText = "RESULT SET TO: " + res;
+        t.className = "show";
+        setTimeout(() => t.className = "", 2000);
+    }
+
+    function updateUI(pId) {
+        db.ref('bets/' + pId).on('value', snap => {
+            let loads = { Green:0, Violet:0, Red:0, 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0 };
+            let total = 0;
+            snap.forEach(child => {
+                let b = child.val();
+                if(loads.hasOwnProperty(b.sel)) {
+                    loads[b.sel] += Number(b.amt);
+                    total += Number(b.amt);
+                }
+            });
+
+            // Update Color Text & Blinking
+            const maxColor = Math.max(loads.Green, loads.Red, loads.Violet);
+            ['Green', 'Red', 'Violet'].forEach(c => {
+                document.getElementById('load' + c).innerText = '₹' + loads[c];
+                document.getElementById('btn' + c).classList.toggle('is-high-load', loads[c] > 0 && loads[c] === maxColor);
+            });
+
+            // Update Number Text & Blinking
+            const maxNum = Math.max(...[0,1,2,3,4,5,6,7,8,9].map(n => loads[n]));
+            for(let i=0; i<=9; i++) {
+                document.getElementById('l' + i).innerText = '₹' + loads[i];
+                document.getElementById('n' + i).classList.toggle('is-high-load', loads[i] > 0 && loads[i] === maxNum);
+            }
+
+            // Calculation Logic
+            document.getElementById('totalColl').innerText = '₹' + total;
+            let greenPay = (loads.Green * 2) + (loads[1]*9 + loads[3]*9 + loads[7]*9 + loads[9]*9) + (loads[5]*1.5 + loads.Violet*4.5);
+            let redPay = (loads.Red * 2) + (loads[2]*9 + loads[4]*9 + loads[6]*9 + loads[8]*9) + (loads[0]*1.5 + loads.Violet*4.5);
+            
+            document.getElementById('ifGreen').innerText = '-₹' + greenPay.toFixed(0);
+            document.getElementById('ifRed').innerText = '-₹' + redPay.toFixed(0);
+
+            if(total > 0) {
+                let best = greenPay < redPay ? "GREEN" : "RED";
+                document.getElementById('advice').innerText = "SYSTEM ADVICE: " + best + " (LOW PAYOUT)";
+            }
+        });
+    }
+
+    setInterval(() => {
+        const now = new Date();
+        const sec = now.getSeconds();
+        const rem = 30 - (sec % 30);
+        const pId = now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0') + Math.floor(((now.getHours() * 3600) + (now.getMinutes() * 60) + sec) / 30);
+        
+        document.getElementById('timer').innerText = "00:" + rem.toString().padStart(2, '0');
+        if(rem <= 5) document.getElementById('timer').style.color = "red";
+        else document.getElementById('timer').style.color = "var(--gold)";
+
+        if (document.getElementById('pId').innerText !== "Period: " + pId) {
+            document.getElementById('pId').innerText = "Period: " + pId;
+            updateUI(pId);
+        }
+    }, 1000);
+</script>
+</body>
+</html>

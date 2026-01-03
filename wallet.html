@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jalwa Pro Admin: Wallet Master</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #06091b; color: white; padding: 10px; }
+        
+        /* Header & Actions */
+        .header-box { display: flex; justify-content: space-between; align-items: center; padding: 15px 5px; position: sticky; top: 0; background: #06091b; z-index: 100; }
+        .title { color: #00ffca; font-size: 18px; font-weight: 900; }
+        .top-btns { display: flex; gap: 8px; }
+        .btn-top { padding: 8px 12px; border-radius: 8px; border: none; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-sel-all { background: #1f2855; color: #fff; border: 1px solid #333; }
+        .btn-del-sel { background: #dc3545; color: #fff; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: #10142d; border-radius: 10px; cursor: pointer; border: 1px solid #1f2855; color: #7e87a8; font-size: 13px; font-weight: bold; }
+        .tab.active { background: #00ffca; color: #000; border: none; box-shadow: 0 0 15px rgba(0,255,202,0.3); }
+
+        /* Request Cards */
+        #requestList { display: flex; flex-direction: column-reverse; gap: 12px; }
+        .card { background: #10142d; border-radius: 15px; border: 1px solid #1f2855; padding: 15px; display: flex; gap: 12px; }
+        .check-box { width: 22px; height: 22px; accent-color: #00ffca; margin-top: 3px; }
+        .card-data { flex: 1; }
+        
+        .u-info { display: flex; justify-content: space-between; border-bottom: 1px solid #1f2855; padding-bottom: 8px; margin-bottom: 10px; }
+        .u-name { font-weight: bold; color: #fff; font-size: 14px; }
+        .u-time { color: #7e87a8; font-size: 11px; }
+
+        .detail-grid { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; display: grid; gap: 6px; }
+        .d-row { display: flex; justify-content: space-between; font-size: 12px; }
+        .label { color: #7e87a8; }
+        .val { color: #fff; font-weight: 500; }
+        .val-highlight { color: #ffc107; font-weight: bold; font-size: 13px; }
+
+        .amt-tag { font-size: 22px; font-weight: 900; color: #00ffca; text-align: right; margin-top: 10px; display: block; }
+
+        /* Action Buttons */
+        .card-btns { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-card { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .approve { background: #28a745; color: #fff; }
+        .reject { background: #dc3545; color: #fff; }
+
+        .empty-msg { text-align: center; padding: 50px; color: #7e87a8; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="header-box">
+        <div class="title">JALWA ADMIN</div>
+        <div class="top-btns">
+            <button class="btn-top btn-sel-all" onclick="toggleSelectAll()">SELECT ALL</button>
+            <button class="btn-top btn-del-sel" onclick="deleteChecked()">DELETE</button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" id="tab-dep" onclick="switchMode('deposits', this)">DEPOSITS</div>
+        <div class="tab" id="tab-wit" onclick="switchMode('withdrawals', this)">WITHDRAWALS</div>
+    </div>
+
+    <div id="requestList">
+        <div class="empty-msg">Scanning database...</div>
+    </div>
+
+<script>
+    // --- 🚨 FIXED FIREBASE CONFIG ---
+    const firebaseConfig = { databaseURL: "https://jalwav7-default-rtdb.firebaseio.com" };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentMode = 'deposits';
+
+    function switchMode(mode, el) {
+        currentMode = mode;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        fetchData();
+    }
+
+    function fetchData() {
+        const list = document.getElementById('requestList');
+        const path = currentMode === 'deposits' ? 'requests/deposits' : 'requests/withdrawals';
+        
+        // Sirf PENDING requests dikhayenge taaki history delete na ho
+        db.ref(path).orderByChild('status').equalTo('pending').on('value', snap => {
+            list.innerHTML = "";
+            if (!snap.exists()) {
+                list.innerHTML = `<div class="empty-msg">No pending ${currentMode} found.</div>`;
+                return;
+            }
+
+            snap.forEach(child => {
+                const req = child.val();
+                const id = child.key;
+                const time = req.date || new Date(req.timestamp).toLocaleTimeString();
+                
+                let detailsHTML = "";
+                if(currentMode === 'deposits') {
+                    detailsHTML = `
+                        <div class="d-row"><span class="label">UTR NO:</span><span class="val-highlight">${req.utr || 'N/A'}</span></div>
+                        <div class="d-row"><span class="label">USER:</span><span class="val">${req.userId || 'N/A'}</span></div>
+                    `;
+                } else {
+                    let upi_id = req.upiId || req.upi || "NOT PROVIDED";
+                    detailsHTML = `
+                        <div class="d-row"><span class="label">UPI ID:</span><span class="val-highlight">${upi_id}</span></div>
+                        <div class="d-row"><span class="label">USER:</span><span class="val">${req.userId || 'N/A'}</span></div>
+                    `;
+                }
+
+                list.innerHTML += `
+                    <div class="card">
+                        <input type="checkbox" class="check-box" value="${id}">
+                        <div class="card-data">
+                            <div class="u-info">
+                                <span class="u-name">👤 ${req.userId || 'User'}</span>
+                                <span class="u-time">${time}</span>
+                            </div>
+                            <div class="detail-grid">
+                                ${detailsHTML}
+                            </div>
+                            <span class="amt-tag">₹${req.amount}</span>
+                            <div class="card-btns">
+                                <button class="btn-card reject" onclick="handleOne('${id}', '${req.userId}', ${req.amount}, 'rejected')">REJECT</button>
+                                <button class="btn-card approve" onclick="handleOne('${id}', '${req.userId}', ${req.amount}, 'approved')">APPROVE</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+    }
+
+    async function handleOne(reqId, uId, amt, type) {
+        const path = currentMode === 'deposits' ? 'requests/deposits/' : 'requests/withdrawals/';
+        
+        try {
+            if (type === 'approved' && currentMode === 'deposits') {
+                // Recharge approve -> Balance badhao
+                await db.ref('users/' + uId + '/balance').transaction(c => (parseFloat(c) || 0) + parseFloat(amt));
+            } 
+            else if (type === 'rejected' && currentMode === 'withdrawals') {
+                // Withdrawal reject -> Balance wapas dalo
+                await db.ref('users/' + uId + '/balance').transaction(c => (parseFloat(c) || 0) + parseFloat(amt));
+            }
+
+            // 🚨 MAIN UPDATE: Delete nahi, sirf status change
+            await db.ref(path + reqId).update({ status: type });
+            alert("Request " + type + " Successfully!");
+
+        } catch (e) {
+            console.error(e);
+            alert("Error: " + e.message);
+        }
+    }
+
+    function toggleSelectAll() {
+        const checks = document.querySelectorAll('.check-box');
+        const anyUnchecked = Array.from(checks).some(c => !c.checked);
+        checks.forEach(c => c.checked = anyUnchecked);
+    }
+
+    function deleteChecked() {
+        if(!confirm("Are you sure you want to delete these records?")) return;
+        const selected = Array.from(document.querySelectorAll('.check-box:checked')).map(c => c.value);
+        if(selected.length === 0) return;
+        
+        const path = currentMode === 'deposits' ? 'requests/deposits/' : 'requests/withdrawals/';
+        selected.forEach(id => db.ref(path + id).remove());
+    }
+
+    fetchData();
+</script>
+</body>
+</html>

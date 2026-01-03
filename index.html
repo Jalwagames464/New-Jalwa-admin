@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jalwa Master Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #050810;
+            --card: #10142d;
+            --accent: #00f2ff;
+            --border: #1f2855;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        
+        body { 
+            background: var(--bg); 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            color: white;
+        }
+
+        /* Top Header */
+        .admin-header {
+            padding: 15px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: var(--accent);
+        }
+
+        /* Main Viewport Jahan Aapki Files Khulengi */
+        #mainDisplay {
+            flex-grow: 1;
+            width: 100%;
+            border: none;
+            background: var(--bg);
+        }
+
+        /* Navigation Bar (Bottom) */
+        .nav-bar {
+            display: flex;
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            padding: 10px 0;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            color: #7e87a8;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .nav-item:last-child { border-right: none; }
+
+        .nav-item i {
+            display: block;
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-header">JALWA PRO MASTER CONTROL</div>
+
+    <iframe id="mainDisplay" name="mainDisplay" src="players.html"></iframe>
+
+    <div class="nav-bar">
+        <div class="nav-item active" onclick="changePage('player.html', this)">
+            <i class="fas fa-users-cog"></i>
+            PLAYERS
+        </div>
+
+        <div class="nav-item" onclick="changePage('wallet.html', this)">
+            <i class="fas fa-wallet"></i>
+            WALLET
+        </div>
+
+        <div class="nav-item" onclick="changePage('game.html', this)">
+            <i class="fas fa-gamepad"></i>
+            GAMES
+        </div>
+    </div>
+
+    <script>
+        function changePage(fileName, element) {
+            // Frame mein file badlo
+            document.getElementById('mainDisplay').src = fileName;
+
+            // Button ko highligh karo
+            let buttons = document.getElementsByClassName('nav-item');
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+            }
+            element.classList.add('active');
+        }
+    </script>
+
+</body>
+</html>

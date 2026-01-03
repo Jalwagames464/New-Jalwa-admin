@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Mines Admin - Synced</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --bg: #06091b; --card: #10142d; --primary: #00e701; --red: #ff4d4d; --gold: #ffd700; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        
+        .admin-card { width: 100%; max-width: 400px; background: var(--card); border-radius: 15px; border: 1px solid #213743; padding: 15px; margin-bottom: 15px; }
+        .header { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .period-tag { color: var(--gold); font-weight: bold; font-family: monospace; }
+
+        /* LIVE MAP GRID */
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 15px 0; }
+        .v-tile { aspect-ratio: 1; background: #2f4553; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 1px solid #3c5261; transition: 0.3s; }
+        .v-tile.is-bomb { background: rgba(255, 77, 77, 0.2); border-color: var(--red); color: var(--red); box-shadow: inset 0 0 10px var(--red); }
+        .v-tile.is-gem { background: rgba(0, 231, 1, 0.1); border-color: var(--primary); color: var(--primary); }
+
+        /* CONTROLS */
+        .ctrl-group { margin-top: 20px; border-top: 1px solid #333; padding-top: 15px; }
+        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        input[type="number"] { width: 60px; background: #06091b; border: 1px solid var(--primary); color: white; padding: 5px; border-radius: 4px; text-align: center; }
+        .btn-apply { width: 100%; background: var(--primary); color: black; border: none; padding: 12px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+        
+        .status { font-size: 12px; text-align: center; color: #8899a6; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="admin-card">
+    <div class="header">
+        <h3 style="margin:0; color:var(--red);">MINES MANIPULATOR</h3>
+        <div class="period-tag">PERIOD: <span id="pIdDisplay">...</span></div>
+    </div>
+
+    <div style="font-size:12px; color:#aaa;"><i class="fas fa-eye"></i> CURRENT BOMB POSITIONS:</div>
+    <div class="grid" id="visualGrid"></div>
+
+    <div class="ctrl-group">
+        <div class="row">
+            <span><i class="fas fa-skull"></i> Auto-Kill Mode</span>
+            <input type="checkbox" id="killSwitch" style="transform: scale(1.5);">
+        </div>
+        <div class="row">
+            <span><i class="fas fa-shield-alt"></i> Max Safe Boxes</span>
+            <input type="number" id="maxBoxes" value="3" min="1" max="24">
+        </div>
+        <button class="btn-apply" onclick="saveAdminSettings()">Apply Manipulation</button>
+        <div class="status" id="statusMsg">System Ready</div>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://jalwa-v2-ad222-default-rtdb.firebaseio.com/" };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentPeriod = "";
+    let lastGeneratedPeriod = "";
+
+    // 1. SYNC TIMER & PERIOD
+    function syncAdmin() {
+        const now = new Date();
+        const sec = now.getSeconds();
+        const pId = now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0') + (now.getHours() * 60 + now.getMinutes()).toString().padStart(4, '0');
+        
+        document.getElementById('pIdDisplay').innerText = pId;
+        currentPeriod = pId;
+
+        // HAR NEW PERIOD PAR NAYE BOMB GENERATE KARO (at 00 second)
+        if (sec === 0 && currentPeriod !== lastGeneratedPeriod) {
+            generateNewMap();
+            lastGeneratedPeriod = currentPeriod;
+        }
+    }
+    setInterval(syncAdmin, 1000);
+
+    // 2. GENERATE AND PUSH MAP TO FIREBASE
+    function generateNewMap() {
+        let mines = [];
+        let count = 5; // Fixed number of bombs for the map
+        while(mines.length < count) {
+            let r = Math.floor(Math.random() * 25);
+            if(!mines.includes(r)) mines.push(r);
+        }
+
+        // Push to Firebase so Game can read same positions
+        db.ref('gameSettings/mines/currentMap').set(mines);
+        renderGrid(mines);
+        console.log("New Map Generated for Period: " + currentPeriod);
+    }
+
+    // 3. RENDER VISUAL GRID
+    function renderGrid(bombIndices) {
+        const grid = document.getElementById('visualGrid');
+        grid.innerHTML = '';
+        for (let i = 0; i < 25; i++) {
+            const tile = document.createElement('div');
+            tile.className = 'v-tile';
+            if (bombIndices.includes(i)) {
+                tile.classList.add('is-bomb');
+                tile.innerHTML = '<i class="fas fa-bomb"></i>';
+            } else {
+                tile.classList.add('is-gem');
+                tile.innerHTML = '<i class="fas fa-gem"></i>';
+            }
+            grid.appendChild(tile);
+        }
+    }
+
+    // 4. SAVE MANIPULATION SETTINGS
+    function saveAdminSettings() {
+        const autoKill = document.getElementById('killSwitch').checked;
+        const maxSafe = document.getElementById('maxBoxes').value;
+
+        db.ref('gameSettings/mines').update({
+            autoKill: autoKill,
+            maxSafe: Number(maxSafe)
+        }).then(() => {
+            document.getElementById('statusMsg').innerText = "SETTINGS UPDATED!";
+            document.getElementById('statusMsg').style.color = "var(--primary)";
+            setTimeout(() => { document.getElementById('statusMsg').innerText = "System Synced"; document.getElementById('statusMsg').style.color = "#8899a6"; }, 2000);
+        });
+    }
+
+    // FETCH INITIAL DATA
+    db.ref('gameSettings/mines/currentMap').on('value', snap => {
+        if(snap.exists()) renderGrid(snap.val());
+    });
+    
+    db.ref('gameSettings/mines').once('value', snap => {
+        if(snap.exists()){
+            document.getElementById('killSwitch').checked = snap.val().autoKill || false;
+            document.getElementById('maxBoxes').value = snap.val().maxSafe || 3;
+        }
+    });
+
+    syncAdmin();
+</script>
+</body>
+</html>

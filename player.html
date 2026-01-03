@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Player List</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg: #050810; --card: #10142d; --accent: #00f2ff; --neon-red: #ff2d55; --neon-green: #00ff88; --text: #e0e6ed; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 20px; overflow-y: auto; }
+
+        /* Stats Cards */
+        .stats-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; position: sticky; top: 0; background: var(--bg); z-index: 1000; }
+        .stat-box { background: var(--card); border: 1px solid #1f2855; padding: 12px; border-radius: 12px; text-align: center; }
+        .stat-box span { font-size: 10px; color: #8892b0; display: block; margin-bottom: 4px; }
+        .stat-box b { font-size: 16px; color: var(--accent); }
+
+        /* Search */
+        .search-box { padding: 0 15px 15px; }
+        .search-box input { width: 100%; background: var(--card); border: 1px solid #1f2855; padding: 12px; border-radius: 10px; color: white; outline: none; }
+
+        /* Player List */
+        .player-list { padding: 10px; display: flex; flex-direction: column; gap: 15px; }
+        .p-card { background: var(--card); border-radius: 15px; border: 1px solid #1f2855; padding: 15px; position: relative; }
+        
+        .p-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .p-id { font-weight: bold; font-size: 14px; color: #fff; }
+        .p-time { font-size: 9px; color: #8892b0; margin-top: 2px; }
+        .online-tag { font-size: 9px; color: var(--neon-green); font-weight: bold; border: 1px solid var(--neon-green); padding: 2px 6px; border-radius: 4px; }
+
+        .info-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 12px; }
+        .info-item span { font-size: 9px; color: #8892b0; display: block; }
+        .info-item b { font-size: 12px; color: var(--accent); }
+
+        .btn-row { display: flex; gap: 8px; }
+        .btn { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 11px; }
+        .btn-edit { background: var(--accent); color: #000; }
+        .btn-del { background: rgba(255, 45, 85, 0.1); color: var(--neon-red); border: 1px solid var(--neon-red); }
+    </style>
+</head>
+<body>
+
+    <div class="stats-container">
+        <div class="stat-box"><span>TOTAL PLAYERS</span><b id="totalU">0</b></div>
+        <div class="stat-box"><span>LIVE PLAYERS</span><b id="liveU" style="color:var(--neon-green)">0</b></div>
+        <div class="stat-box"><span>TODAY JOINED</span><b id="todayU">0</b></div>
+        <div class="stat-box"><span>TOTAL WALLET</span><b id="walletU">₹0</b></div>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="srch" placeholder="Search Phone, Pass or UID..." onkeyup="search()">
+    </div>
+
+    <div class="player-list" id="pList">
+        <p style="text-align:center; padding:50px;">Connecting to Firebase...</p>
+    </div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://jalwav7-default-rtdb.firebaseio.com" };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    db.ref('users').on('value', snap => {
+        const list = document.getElementById('pList');
+        list.innerHTML = "";
+        
+        let total = 0, live = 0, today = 0, totalBal = 0;
+        const todayDate = new Date().toLocaleDateString();
+
+        if(!snap.exists()) return;
+
+        snap.forEach(child => {
+            const u = child.val();
+            const uid = child.key;
+
+            // 🕵️ Data Detection
+            const phone = u.phone || uid;
+            const pass = u.password || u.pass || u.user_pass || "⚠️ ERROR";
+            const bal = parseFloat(u.balance || 0);
+            const isLive = u.isOnline === true; // Aapke game mein isOnline update hona chahiye
+            
+            // Time Logic
+            const regDate = u.regDate ? new Date(u.regDate) : new Date();
+            const timeStr = regDate.toLocaleDateString() + " | " + regDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            // Global Stats
+            total++;
+            totalBal += bal;
+            if(isLive) live++;
+            if(regDate.toLocaleDateString() === todayDate) today++;
+
+            list.innerHTML += `
+                <div class="p-card">
+                    <div class="p-header">
+                        <div>
+                            <div class="p-id">📱 ${phone}</div>
+                            <div class="p-time">Joined: ${timeStr}</div>
+                        </div>
+                        ${isLive ? '<span class="online-tag">● LIVE</span>' : ''}
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-item"><span>🔐 PASSWORD</span><b style="color:var(--neon-red)">${pass}</b></div>
+                        <div class="info-item"><span>💰 BALANCE</span><b style="color:var(--neon-green)">₹${bal.toFixed(2)}</b></div>
+                        <div class="info-item"><span>🆔 UID</span><b>${uid.substring(0,12)}</b></div>
+                        <div class="info-item"><span>📅 REG DATE</span><b>${regDate.toLocaleDateString()}</b></div>
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-edit" onclick="editB('${uid}', ${bal})">EDIT BAL</button>
+                        <button class="btn btn-del" onclick="delU('${uid}', '${phone}')">DELETE</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Update Dashboard
+        document.getElementById('totalU').innerText = total;
+        document.getElementById('liveU').innerText = live;
+        document.getElementById('todayU').innerText = today;
+        document.getElementById('walletU').innerText = "₹" + Math.floor(totalBal).toLocaleString();
+    });
+
+    function editB(id, old) {
+        let n = prompt("Enter New Balance:", old);
+        if(n) db.ref('users/'+id).update({ balance: parseFloat(n) });
+    }
+
+    function delU(id, ph) {
+        if(confirm("Delete Player " + ph + "?")) db.ref('users/'+id).remove();
+    }
+
+    function search() {
+        let q = document.getElementById('srch').value.toLowerCase();
+        let cards = document.getElementsByClassName('p-card');
+        for(let c of cards) { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; }
+    }
+</script>
+</body>
+</html>
